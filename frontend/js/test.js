@@ -45,6 +45,7 @@ window.onload = function() {
 };
 
 async function loadQuestions() {
+    let apiUrl = '';
     try {
         const loadingElement = document.getElementById('loading');
         loadingElement.textContent = 'Loading questions...';
@@ -58,9 +59,7 @@ async function loadQuestions() {
         } else {
             sessionStorage.setItem('testSource', 'database');
         }
-        
-        let apiUrl = "";
-        
+                     
         // Show AI disclaimer if in GenAI mode
         const disclaimer = document.getElementById('ai-disclaimer');
         if (source === 'genai' && disclaimer) {
