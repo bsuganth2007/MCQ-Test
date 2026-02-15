@@ -1,0 +1,20 @@
+{
+  "subject_pdfs": {
+    "Physics": {
+      "pdf_path": "D:/Suganthi/Projects/academic-generator/exam_papers/CBSE/Grade10/Physics/",
+      "syllabus_url": ""
+    },
+    "Chemistry": {
+      "pdf_path": "D:/Suganthi/Projects/academic-generator/exam_papers/CBSE/Grade10/Chemistry/",
+      "syllabus_url": ""
+    },
+    "Maths": {
+      "pdf_path": "D:/Suganthi/Projects/academic-generator/exam_papers/CBSE/Grade10/Maths/",
+      "syllabus_url": ""
+    },
+    "Biology": {
+      "pdf_path": "D:/Suganthi/Projects/academic-generator/exam_papers/CBSE/Grade10/Biology/",
+      "syllabus_url": ""
+    }
+  }
+}

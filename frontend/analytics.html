@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>User Analytics - Admin</title>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>📊 User Analytics Dashboard</h1>
+            <p>Track visitors, test attempts, and user performance</p>
+        </header>
+
+        <main>
+            <!-- Overview Stats -->
+            <section class="overview-section">
+                <h2>Overview</h2>
+                <table class="history-table" style="margin-bottom: 30px;">
+                    <thead>
+                        <tr>
+                            <th>Total Users</th>
+                            <th>Total Visits</th>
+                            <th>Total Tests</th>
+                            <th>Average Score</th>
+                            <th>Active Users (24h)</th>
+                        </tr>
+                    </thead>
+                    <tbody id="overview-stats">
+                        <!-- Stats will be loaded here -->
+                    </tbody>
+                </table>
+            </section>
+
+            <!-- User List -->
+            <section style="margin-top: 40px;">
+                <h2>All Users</h2>
+                <div style="margin-bottom: 20px;">
+                    <button class="btn btn-secondary" onclick="exportUsers()">
+                        📥 Export to CSV
+                    </button>
+                </div>
+                <table class="history-table">
+                    <thead>
+                        <tr>
+                            <th>User ID</th>
+                            <th>Name</th>
+                            <th>First Visit</th>
+                            <th>Last Visit</th>
+                            <th>Total Visits</th>
+                            <th>Total Tests</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="users-list"></tbody>
+                </table>
+            </section>
+
+            <!-- Navigation -->
+            <section class="actions">
+                <button class="btn btn-primary" onclick="window.location.href='admin.html'">
+                    ← Back to Admin
+                </button>
+                <button class="btn btn-secondary" onclick="window.location.href='/'">
+                    Home
+                </button>
+            </section>
+        </main>
+    </div>
+
+    <script src="js/analytics.js"></script>
+</body>
+</html>

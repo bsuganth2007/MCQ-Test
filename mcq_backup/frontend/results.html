@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Results</title>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Test Results</h1>
+        </header>
+
+        <main>
+            <div id="loading" class="loading">Loading results...</div>
+            
+            <div id="results-container" style="display: none;">
+                <section class="score-summary">
+                    <h2>Your Score</h2>
+                    <div class="score-circle">
+                        <div class="score-text">
+                            <span id="score-percentage">0%</span>
+                            <p id="score-details">0/20</p>
+                        </div>
+                    </div>
+                    <p id="score-message"></p>
+                </section>
+
+                <section class="answers-review">
+                    <h2>Answer Review</h2>
+                    <div id="answers-list"></div>
+                </section>
+
+                <section class="actions">
+                    <button class="btn btn-primary" onclick="goHome()">Back to Home</button>
+                    <button class="btn btn-secondary" onclick="viewHistory()">View History</button>
+                </section>
+            </div>
+        </main>
+    </div>
+
+    <script src="js/results.js"></script>
+</body>
+</html>

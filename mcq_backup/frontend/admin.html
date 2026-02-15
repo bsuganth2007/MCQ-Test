@@ -1,0 +1,429 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Panel - Question Review</title>
+    <link rel="stylesheet" href="css/style.css">
+    <style>
+        /* Admin-specific styles */
+        .stats-dashboard {
+            margin-bottom: 30px;
+        }
+        
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+            margin-top: 20px;
+        }
+        
+        .stat-card {
+            background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+            padding: 20px;
+            border-radius: 15px;
+            text-align: center;
+        }
+        
+        .stat-card h3 {
+            font-size: 1.2em;
+            margin-bottom: 15px;
+            color: #333;
+        }
+        
+        .stat-numbers {
+            display: flex;
+            justify-content: space-around;
+            margin-top: 15px;
+        }
+        
+        .stat-item {
+            text-align: center;
+        }
+        
+        .stat-value {
+            font-size: 2em;
+            font-weight: bold;
+            display: block;
+        }
+        
+        .stat-label {
+            font-size: 0.9em;
+            color: #666;
+            margin-top: 5px;
+        }
+        
+        .stat-value.pending {
+            color: #f5576c;
+        }
+        
+        .stat-value.approved {
+            color: #38ef7d;
+        }
+        
+        .controls {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 30px;
+            flex-wrap: wrap;
+            gap: 15px;
+        }
+        
+        .control-group {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .control-group select {
+            padding: 10px;
+            border-radius: 5px;
+            border: 2px solid #ddd;
+            font-size: 1em;
+        }
+        
+        .tabs {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+            border-bottom: 2px solid #ddd;
+        }
+        
+        .tab-btn {
+            padding: 12px 25px;
+            background: none;
+            border: none;
+            border-bottom: 3px solid transparent;
+            font-size: 1em;
+            font-weight: 600;
+            cursor: pointer;
+            color: #666;
+        }
+        
+        .tab-btn.active {
+            color: #667eea;
+            border-bottom-color: #667eea;
+        }
+        
+        .tab-content {
+            display: none;
+        }
+        
+        .tab-content.active {
+            display: block;
+        }
+        
+        .actions-bar {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+        
+        .questions-list {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+        
+        .question-card {
+            background: #f5f7fa;
+            border-radius: 10px;
+            padding: 20px;
+            border-left: 5px solid #ddd;
+        }
+        
+        .question-card.selected {
+            border-left-color: #667eea;
+            background: #f0f2ff;
+        }
+        
+        .question-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+        }
+        
+        .question-meta {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 10px;
+        }
+        
+        .badge {
+            padding: 5px 10px;
+            border-radius: 5px;
+            font-size: 0.85em;
+            font-weight: 600;
+        }
+        
+        .badge-subject {
+            background: #667eea;
+            color: white;
+        }
+        
+        .badge-type {
+            background: #f093fb;
+            color: white;
+        }
+        
+        .badge-pending {
+            background: #ffd93d;
+            color: #333;
+        }
+        
+        .question-text {
+            font-size: 1.1em;
+            color: #333;
+            margin: 15px 0;
+        }
+        
+        .question-options {
+            margin: 15px 0;
+        }
+        
+        .option-item {
+            padding: 10px;
+            margin: 5px 0;
+            background: white;
+            border-radius: 5px;
+            border: 2px solid #ddd;
+        }
+        
+        .option-item.correct {
+            border-color: #38ef7d;
+            background: #f0fff4;
+        }
+        
+        .question-actions {
+            display: flex;
+            gap: 10px;
+            margin-top: 15px;
+        }
+        
+        .btn-success {
+            background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
+            color: white;
+        }
+        
+        .btn-danger {
+            background: linear-gradient(135deg, #ff6b6b 0%, #ee5a6f 100%);
+            color: white;
+        }
+        
+        .btn-edit {
+            background: #f093fb;
+            color: white;
+        }
+        
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.5);
+        }
+        
+        .modal-content {
+            background-color: white;
+            margin: 5% auto;
+            padding: 30px;
+            border-radius: 15px;
+            width: 90%;
+            max-width: 600px;
+        }
+        
+        .close {
+            float: right;
+            font-size: 28px;
+            font-weight: bold;
+            cursor: pointer;
+        }
+        
+        .form-group {
+            margin-bottom: 15px;
+        }
+        
+        .form-group label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: 600;
+        }
+        
+        .form-group input,
+        .form-group select,
+        .form-group textarea {
+            width: 100%;
+            padding: 10px;
+            border: 2px solid #ddd;
+            border-radius: 5px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>🔧 Admin Panel - Question Review</h1>
+            <p>Review AI-generated questions and approve them to add to the main question bank</p>
+        </header>
+
+        <main>
+            <!-- Stats Dashboard -->
+            <section class="stats-dashboard">
+                <h2>Question Statistics</h2>
+                <div class="stats-grid" id="stats-grid">
+                    <!-- Stats will be loaded here -->
+                </div>
+            </section>
+
+            <!-- Controls -->
+            <section class="controls">
+                <div class="control-group">
+                    <label for="subject-select">Filter by Subject:</label>
+                    <select id="subject-select" onchange="loadPendingQuestions()">
+                        <option value="">All Subjects</option>
+                        <option value="Physics">Physics</option>
+                        <option value="Chemistry">Chemistry</option>
+                        <option value="Maths">Maths</option>
+                        <option value="Biology">Biology</option>
+                    </select>
+                </div>
+
+                <div class="control-group">
+                    <button class="btn btn-primary" onclick="showGenerateModal()">
+                        ✨ Generate New Questions
+                    </button>
+                    <button class="btn btn-secondary" onclick="window.location.href='/'">
+                        ← Back to Student Portal
+                    </button>
+                </div>
+            </section>
+
+            <!-- Tabs -->
+            <section class="tabs">
+                <button class="tab-btn active" onclick="switchTab('pending')">
+                    Pending Review (<span id="pending-count">0</span>)
+                </button>
+                <button class="tab-btn" onclick="switchTab('approved')">
+                    Approved (<span id="approved-count">0</span>)
+                </button>
+            </section>
+
+            <!-- Pending Questions -->
+            <section id="pending-tab" class="tab-content active">
+                <div class="actions-bar">
+                    <button class="btn btn-success" onclick="approveSelected()">
+                        ✓ Approve Selected
+                    </button>
+                    <button class="btn btn-danger" onclick="rejectSelected()">
+                        ✗ Reject Selected
+                    </button>
+                    <button class="btn btn-secondary" onclick="selectAll()">
+                        Select All
+                    </button>
+                </div>
+
+                <div id="pending-questions-list" class="questions-list">
+                    <p style="text-align: center; padding: 40px; color: #666;">
+                        Loading questions...
+                    </p>
+                </div>
+            </section>
+
+            <!-- Approved Questions -->
+            <section id="approved-tab" class="tab-content">
+                <div id="approved-questions-list" class="questions-list">
+                    <p style="text-align: center; padding: 40px; color: #666;">
+                        Loading approved questions...
+                    </p>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <!-- Generate Modal -->
+    <div id="generate-modal" class="modal">
+        <div class="modal-content">
+            <span class="close" onclick="closeGenerateModal()">&times;</span>
+            <h2>Generate New Questions</h2>
+            <p>Select a subject to generate 20 AI questions for review:</p>
+            
+            <div class="form-group">
+                <select id="generate-subject">
+                    <option value="Physics">Physics</option>
+                    <option value="Chemistry">Chemistry</option>
+                    <option value="Maths">Maths</option>
+                    <option value="Biology">Biology</option>
+                </select>
+            </div>
+            
+            <button class="btn btn-primary" onclick="generateQuestions()">
+                Generate Questions
+            </button>
+            
+            <div id="generate-status" style="margin-top: 20px;"></div>
+        </div>
+    </div>
+
+    <!-- Edit Modal -->
+    <div id="edit-modal" class="modal">
+        <div class="modal-content">
+            <span class="close" onclick="closeEditModal()">&times;</span>
+            <h2>Edit Question</h2>
+            
+            <div class="form-group">
+                <label>Question Type:</label>
+                <select id="edit-type">
+                    <option value="Standard">Standard</option>
+                    <option value="Reasoning">Reasoning</option>
+                    <option value="Assertion">Assertion</option>
+                </select>
+            </div>
+            
+            <div class="form-group">
+                <label>Question:</label>
+                <textarea id="edit-question" rows="3"></textarea>
+            </div>
+            
+            <div class="form-group">
+                <label>Option A:</label>
+                <input type="text" id="edit-option-a">
+            </div>
+            
+            <div class="form-group">
+                <label>Option B:</label>
+                <input type="text" id="edit-option-b">
+            </div>
+            
+            <div class="form-group">
+                <label>Option C:</label>
+                <input type="text" id="edit-option-c">
+            </div>
+            
+            <div class="form-group">
+                <label>Option D:</label>
+                <input type="text" id="edit-option-d">
+            </div>
+            
+            <div class="form-group">
+                <label>Correct Option:</label>
+                <select id="edit-correct">
+                    <option value="A">A</option>
+                    <option value="B">B</option>
+                    <option value="C">C</option>
+                    <option value="D">D</option>
+                </select>
+            </div>
+            
+            <button class="btn btn-primary" onclick="saveEdit()">
+                Save Changes
+            </button>
+        </div>
+    </div>
+
+    <script src="js/admin.js"></script>
+</body>
+</html>

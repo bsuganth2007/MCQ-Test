@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ICSE Grade 10 - MCQ Test</title>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>ICSE Grade 10 - MCQ Test Application</h1>
+            <p>Test your knowledge across Physics, Chemistry, Maths, and Biology</p>
+        </header>
+
+        <main>
+            <!-- Subject Selection with Mode Toggle -->
+            <section class="subject-selection">
+                <h2>Select a Subject to Begin</h2>
+                
+                <!-- Mode Toggle -->
+                <div class="mode-toggle">
+                    <span style="margin-right: 10px; font-weight: 600; color: #666;">Question Source:</span>
+                    <button class="mode-btn active" id="db-mode-btn" onclick="selectMode('database')">
+                        <span class="mode-icon-small">📚</span> Question Bank
+                    </button>
+                    <button class="mode-btn" id="genai-mode-btn" onclick="selectMode('genai')">
+                        <span class="mode-icon-small">🤖</span> AI Generated
+                    </button>
+                </div>
+                
+                <div class="subject-cards">
+                    <div class="subject-card" onclick="startTest('Physics')">
+                        <div class="subject-icon">⚛️</div>
+                        <h3>Physics</h3>
+                        <p>Test your physics knowledge</p>
+                    </div>
+                    <div class="subject-card" onclick="startTest('Chemistry')">
+                        <div class="subject-icon">🧪</div>
+                        <h3>Chemistry</h3>
+                        <p>Test your chemistry knowledge</p>
+                    </div>
+                    <div class="subject-card" onclick="startTest('Maths')">
+                        <div class="subject-icon">📐</div>
+                        <h3>Mathematics</h3>
+                        <p>Test your maths knowledge</p>
+                    </div>
+                    <div class="subject-card" onclick="startTest('Biology')">
+                        <div class="subject-icon">🧬</div>
+                        <h3>Biology</h3>
+                        <p>Test your biology knowledge</p>
+                    </div>
+                </div>
+            </section>
+
+            <section class="actions">
+               <section class="actions">
+    <button class="btn btn-secondary" onclick="viewHistory()">View Test History</button>
+    <button class="btn btn-primary" onclick="window.location.href='admin.html'">
+        🔧 Admin Panel
+    </button>
+</section>
+            </section>
+        </main>
+
+        <footer>
+            <p>&copy; 2026 ICSE MCQ Test Application</p>
+        </footer>
+    </div>
+
+    <script src="js/app.js"></script>
+</body>
+</html>

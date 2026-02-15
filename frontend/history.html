@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test History</title>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Test History</h1>
+        </header>
+
+        <main>
+            <div id="loading" class="loading">Loading history...</div>
+            
+            <div id="history-container" style="display: none;">
+                <!-- Subject Filter -->
+                <div class="filter-section" style="margin-bottom: 25px; background: white; padding: 15px; border-radius: 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.05); display: flex; align-items: center; gap: 15px;">
+                    <label for="subject-filter" style="font-weight: bold; color: #444;">Filter by Subject:</label>
+                    <select id="subject-filter" onchange="applyFilter()" style="padding: 10px; border-radius: 8px; border: 1px solid #ddd; flex: 1; max-width: 250px;">
+                        <option value="all">All Subjects</option>
+                    </select>
+                </div>
+
+                <!-- Statistics Section -->
+                <div class="stats-section" style="margin-bottom: 30px;">
+                    <h2 style="margin-bottom: 15px; font-size: 1.4em; color: #333;">Subject Performance Stats</h2>
+                    <table class="history-table" style="background: white;">
+                        <thead>
+                            <tr style="background: #6c5ce7; color: white;">
+                                <th>Subject</th>
+                                <th>Tests Taken</th>
+                                <th>Avg Score</th>
+                                <th>Min Score</th>
+                                <th>Max Score</th>
+                            </tr>
+                        </thead>
+                        <tbody id="stats-table-body">
+                            <!-- Stats will be injected here -->
+                        </tbody>
+                    </table>
+                </div>
+
+                <h2 style="margin-bottom: 15px; font-size: 1.4em; color: #333;">Detailed Test History</h2>
+                <table class="history-table">
+                    <thead>
+                        <tr>
+                            <th>Test No</th>
+                            <th>Date</th>
+                            <th>Time</th>
+                            <th>Subject</th>
+                            <th>Score</th>
+                            <th>Trend</th>
+                            <th>Action</th>
+                        </tr>
+                    </thead>
+                    <tbody id="history-table-body"></tbody>
+                </table>
+            </div>
+
+            <section class="actions">
+                <button class="btn btn-primary" onclick="goHome()">Back to Home</button>
+            </section>
+        </main>
+    </div>
+
+    <script src="js/history.js"></script>
+    <script>
+        function goHome() {
+            window.location.href = 'index.html';
+        }
+
+        function viewDetails(testId) {
+            window.location.href = `results.html?id=${testId}`;
+        }
+    </script>
+</body>
+</html>

@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test History</title>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Test History</h1>
+        </header>
+
+        <main>
+            <div id="loading" class="loading">Loading history...</div>
+            
+            <div id="history-container" style="display: none;">
+                <table class="history-table">
+                    <thead>
+                        <tr>
+                            <th>Test No</th>
+                            <th>Date</th>
+                            <th>Time</th>
+                            <th>Subject</th>
+                            <th>Score</th>
+                            <th>Action</th>
+                        </tr>
+                    </thead>
+                    <tbody id="history-list"></tbody>
+                </table>
+            </div>
+
+            <section class="actions">
+                <button class="btn btn-primary" onclick="goHome()">Back to Home</button>
+            </section>
+        </main>
+    </div>
+
+    <script>
+        const API_URL = 'http://localhost:5001/api';
+
+        async function loadHistory() {
+            try {
+                const response = await fetch(`${API_URL}/history`);
+                const data = await response.json();
+                
+                document.getElementById('loading').style.display = 'none';
+                document.getElementById('history-container').style.display = 'block';
+                
+                const historyList = document.getElementById('history-list');
+                
+                if (data.history.length === 0) {
+                    historyList.innerHTML = '<tr><td colspan="6" style="text-align: center;">No test history found</td></tr>';
+                    return;
+                }
+                
+                historyList.innerHTML = data.history.map(test => {
+                    const scoreNum = parseFloat(test.score);
+                    return `
+                    <tr>
+                        <td>${test.test_no}</td>
+                        <td>${test.date}</td>
+                        <td>${test.time}</td>
+                        <td>${test.subject}</td>
+                        <td class="${scoreNum >= 60 ? 'score-good' : 'score-bad'}">${test.score}</td>
+                        <td><button class="btn btn-small" onclick="viewTestDetails(${test.id})">View Details</button></td>
+                    </tr>
+                `}).join('');
+            } catch (error) {
+                console.error('Error loading history:', error);
+                document.getElementById('loading').textContent = 'Error loading history';
+            }
+        }
+
+        function viewTestDetails(testId) {
+            window.location.href = `results.html?testId=${testId}`;
+        }
+
+        function goHome() {
+            window.location.href = 'index.html';
+        }
+
+        // Load history on page load
+        loadHistory();
+    </script>
+</body>
+</html>

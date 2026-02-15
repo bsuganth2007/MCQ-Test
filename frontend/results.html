@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Results - ICSE MCQ</title>
+    <link rel="stylesheet" href="css/style.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
+    <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js"></script>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>📊 Test Results</h1>
+            <div id="ai-disclaimer" class="ai-disclaimer" style="display: none;">
+                ⚠️ <strong>Note:</strong> These questions were AI-generated. If you find any discrepancies, please refer to your ICSE textbook for the authoritative answer.
+            </div>
+        </header>
+
+        <main>
+            <!-- Results Summary -->
+            <div class="results-summary">
+                <div class="score-main">
+                    <h2>Your Score</h2>
+                    <div class="score-display" id="score">0%</div>
+                </div>
+                
+                <div class="score-details">
+                    <div class="score-item" onclick="filterResults('correct')" style="cursor: pointer;" title="Filter Correct">
+                        <div class="label">Correct</div>
+                        <div class="value" id="correct-count">0</div>
+                    </div>
+                    <div class="score-item" onclick="filterResults('incorrect')" style="cursor: pointer;" title="Filter Incorrect">
+                        <div class="label">Incorrect</div>
+                        <div class="value" id="incorrect-count">0</div>
+                    </div>
+                    <div class="score-item" onclick="filterResults('all')" style="cursor: pointer;" title="Show All">
+                        <div class="label">Total</div>
+                        <div class="value" id="total-count">0</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Detailed Answer Review -->
+            <section class="answers-section">
+                <div class="section-header">
+                    <h2 id="review-heading-text">📝 Detailed Review</h2>
+                    <div class="header-actions">
+                        <a href="javascript:void(0)" onclick="goHome()" class="header-link">🏠 Home</a>
+                        <a href="javascript:void(0)" onclick="viewHistory()" class="header-link">📜 History</a>
+                    </div>
+                </div>
+                <div id="answers-review">
+                    <!-- Answer cards will be inserted here by JavaScript -->
+                </div>
+            </section>
+
+            <!-- Action Buttons -->
+            <div class="results-actions">
+                <button class="btn btn-primary" onclick="goHome()">
+                    🏠 Back to Home
+                </button>
+                <button class="btn btn-secondary" onclick="viewHistory()">
+                    📜 View History
+                </button>
+            </div>
+        </main>
+    </div>
+
+    <script src="js/results.js"></script>
+</body>
+</html>

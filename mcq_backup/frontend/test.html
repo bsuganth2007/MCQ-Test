@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MCQ Test</title>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1 id="subject-title">Test</h1>
+            <div class="progress-bar">
+                <div class="progress-fill" id="progress"></div>
+            </div>
+            <p id="question-counter">Question 0 of 20</p>
+        </header>
+
+        <main>
+            <div id="loading" class="loading">Loading questions...</div>
+            <div id="test-container" class="test-container" style="display: none;">
+                <div id="questions-container"></div>
+                
+                <div class="navigation-buttons">
+                    <button class="btn btn-secondary" id="prev-btn" onclick="previousPage()" disabled>Previous Page</button>
+                    <button class="btn btn-primary" id="next-btn" onclick="nextPage()">Next Page</button>
+                    <button class="btn btn-success" id="submit-btn" onclick="submitTest()" style="display: none;">Submit Test</button>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script src="js/test.js"></script>
+</body>
+</html>
