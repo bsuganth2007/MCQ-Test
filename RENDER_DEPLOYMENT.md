@@ -11,6 +11,20 @@ When deploying on Render (or any cloud platform), the SQLite database (`data/his
 
 The application already supports PostgreSQL! When the `DATABASE_URL` environment variable is set, it automatically switches from SQLite to PostgreSQL, which provides persistent storage in the cloud.
 
+### 🔍 Quick Check: Verify Your Setup
+
+Before deploying, you can verify your database configuration locally:
+
+```bash
+python verify_setup.py
+```
+
+This script will:
+- ✅ Check if you're using SQLite or PostgreSQL
+- ✅ Verify all dependencies are installed
+- ✅ Test database connection
+- ✅ Provide deployment recommendations
+
 ---
 
 ## Step-by-Step Deployment Guide

@@ -6,6 +6,7 @@ A web-based Multiple Choice Questions (MCQ) test application for ICSE Grade 10 s
 
 - **[Cloud Deployment Guide](RENDER_DEPLOYMENT.md)** - Fix database reset issues on Render/cloud platforms
 - **[Environment Template](.env.template)** - Configure PostgreSQL connection
+- **[Setup Verification](verify_setup.py)** - Run `python verify_setup.py` to check your database configuration
 
 ## Features
 
