@@ -4,8 +4,8 @@ import os
 # Get API key from environment variable only
 api_key = os.getenv('GEMINI_API_KEY')
 
-if not api_key:
-    print("❌ ERROR: GEMINI_API_KEY environment variable not set!")
+if not api_key or api_key == 'YOUR_GEMINI_API_KEY_HERE':
+    print("❌ ERROR: GEMINI_API_KEY environment variable not set or using placeholder!")
     print("\n📝 Setup Instructions:")
     print("   1. Get your API key from: https://aistudio.google.com/app/apikey")
     print("   2. Copy backend/.env.example to backend/.env")
