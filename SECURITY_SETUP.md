@@ -1,5 +1,17 @@
 # Security Setup Guide - Gemini API Key Configuration
 
+## ⚠️ CRITICAL SECURITY NOTICE
+
+**A Gemini API key was previously exposed in this repository's git history (commit cdd6818). If you were using that key:**
+
+1. **The exposed key has been replaced with a placeholder** - You must configure your own key
+2. **The old exposed key should be revoked immediately** if it was yours:
+   - Visit [Google AI Studio](https://aistudio.google.com/app/apikey)
+   - Delete any API keys that may have been compromised
+3. **Generate a new API key** and configure it securely following the instructions below
+
+---
+
 ## ⚠️ IMPORTANT: Secure API Key Management
 
 This application requires a Google Gemini API key to generate MCQ questions using AI. To ensure security, your API key must be properly configured and protected.
