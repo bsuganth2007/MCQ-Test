@@ -2,6 +2,12 @@
 
 A web-based Multiple Choice Questions (MCQ) test application for ICSE Grade 10 students covering Physics, Chemistry, Mathematics, and Biology.
 
+## ⚠️ Database Reset Issue on Render?
+
+**👉 [Do I Need to Do Anything Manually?](DO_I_NEED_TO_DO_ANYTHING.md)** - Quick answer to your question!
+
+**Answer**: YES - 5 minutes of configuration on Render dashboard is required. [See details →](DO_I_NEED_TO_DO_ANYTHING.md)
+
 ## 🚀 Quick Links
 
 - **[Quick Start: Fix Render Database Reset](QUICKSTART_RENDER.md)** - 5-minute fix for database reset issue ⚡
