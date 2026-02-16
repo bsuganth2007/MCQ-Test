@@ -761,14 +761,19 @@ def submit_test():
 @app.route('/api/history', methods=['GET'])
 def get_history():
     """Get test history"""
+    user_id = request.args.get('user_id')
+    if not user_id:
+        return jsonify({'error': 'user_id is required'}), 400
+
     conn = sqlite3.connect(DB_FILE)
     cursor = conn.cursor()
     
     cursor.execute('''
         SELECT id, subject, total_questions, correct_answers, score, timestamp
         FROM test_history
+        WHERE user_id = ?
         ORDER BY timestamp DESC
-    ''')
+    ''', (user_id,))
     
     history = []
     for idx, row in enumerate(cursor.fetchall(), 1):
@@ -787,9 +792,44 @@ def get_history():
     conn.close()
     return jsonify({'history': history})
 
+@app.route('/api/admin/history', methods=['GET'])
+def get_admin_history():
+    """Get test history for all users (admin)"""
+    conn = sqlite3.connect(DB_FILE)
+    cursor = conn.cursor()
+
+    cursor.execute('''
+        SELECT id, subject, total_questions, correct_answers, score, timestamp, user_id, user_name
+        FROM test_history
+        ORDER BY timestamp DESC
+    ''')
+
+    history = []
+    for idx, row in enumerate(cursor.fetchall(), 1):
+        timestamp = datetime.strptime(row[5], '%Y-%m-%d %H:%M:%S')
+        history.append({
+            'test_no': idx,
+            'date': timestamp.strftime('%d-%b-%Y'),
+            'time': timestamp.strftime('%I:%M %p'),
+            'subject': row[1],
+            'score': f"{row[4]:.1f}%",
+            'id': row[0],
+            'total_questions': row[2],
+            'correct_answers': row[3],
+            'user_id': row[6],
+            'user_name': row[7]
+        })
+
+    conn.close()
+    return jsonify({'history': history})
+
 @app.route('/api/history/<int:test_id>', methods=['GET'])
 def get_test_details(test_id):
     """Get detailed results for a specific test"""
+    user_id = request.args.get('user_id')
+    if not user_id:
+        return jsonify({'error': 'user_id is required'}), 400
+
     conn = sqlite3.connect(DB_FILE)
     cursor = conn.cursor()
     
@@ -797,8 +837,8 @@ def get_test_details(test_id):
     cursor.execute('''
         SELECT subject, total_questions, correct_answers, score, timestamp
         FROM test_history
-        WHERE id = ?
-    ''', (test_id,))
+        WHERE id = ? AND user_id = ?
+    ''', (test_id, user_id))
     
     test_info = cursor.fetchone()
     if not test_info:
@@ -1468,8 +1508,18 @@ def get_admin_stats():
     try:
         df = pd.read_csv(DATA_FILE, encoding='utf-8', dtype=str)
         df['Subject'] = df['Subject'].str.replace('Physcis', 'Physics', case=False)
-        subjects = sorted(df['Subject'].unique().tolist())
-    except:
+        df['Subject'] = df['Subject'].fillna('').astype(str).str.strip().str.replace(r'\s+', ' ', regex=True)
+
+        unique_subjects = {}
+        for subject in df['Subject'].tolist():
+            if not subject:
+                continue
+            key = subject.lower()
+            if key not in unique_subjects:
+                unique_subjects[key] = subject
+
+        subjects = sorted(unique_subjects.values())
+    except Exception:
         subjects = ['Physics', 'Chemistry', 'Maths', 'Biology']
     
     stats = {}
@@ -1481,7 +1531,7 @@ def get_admin_stats():
                 COUNT(CASE WHEN status = 'approved' THEN 1 END) as approved,
                 COUNT(CASE WHEN status = 'rejected' THEN 1 END) as rejected
             FROM ai_generated_questions
-            WHERE subject = ? AND is_active = 1
+            WHERE TRIM(subject) = ? AND is_active = 1
         ''', (subject,))
         
         row = cursor.fetchone()

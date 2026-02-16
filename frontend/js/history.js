@@ -7,6 +7,8 @@ if (window.location.port !== '5002' && (window.location.hostname === 'localhost'
 }
 
 let allHistory = [];
+const ADMIN_EMAIL = 'bsuganth@gmail.com';
+let isAdminUser = false;
 
 window.onload = function() {
     loadHistory();
@@ -14,7 +16,36 @@ window.onload = function() {
 
 async function loadHistory() {
     try {
-        const response = await fetch(`${API_URL}/history`);
+        const userId = localStorage.getItem('userId');
+        const userEmail = localStorage.getItem('userEmail');
+        isAdminUser = userEmail === ADMIN_EMAIL;
+
+        if (!userId) {
+            const historyTableBody = document.getElementById('history-table-body');
+            historyTableBody.innerHTML = `
+                <tr>
+                    <td colspan="7" style="text-align: center; padding: 40px; color: #666;">
+                        <h3>User not identified</h3>
+                        <p>Please go back and enter your email before viewing history.</p>
+                        <button class="btn btn-primary" onclick="goHome()">Back to Home</button>
+                    </td>
+                </tr>
+            `;
+            const loadingElement = document.getElementById('loading');
+            if (loadingElement) loadingElement.style.display = 'none';
+            return;
+        }
+
+        const userHeader = document.getElementById('user-header');
+        if (userHeader) {
+            userHeader.style.display = isAdminUser ? '' : 'none';
+        }
+
+        const historyUrl = isAdminUser
+            ? `${API_URL}/admin/history`
+            : `${API_URL}/history?user_id=${encodeURIComponent(userId)}`;
+
+        const response = await fetch(historyUrl);
         const data = await response.json();
         
         allHistory = data.history || [];
@@ -132,11 +163,16 @@ function renderHistoryTable(data) {
             }
         }
 
+        const userCell = isAdminUser
+            ? `<td>${test.user_name || test.user_id || 'Unknown'}</td>`
+            : '';
+
         return `
             <tr>
                 <td>${test.test_no}</td>
                 <td>${test.date}</td>
                 <td>${test.time}</td>
+                ${userCell}
                 <td>${test.subject}</td>
                 <td style="color: ${parseFloat(test.score) >= 60 ? '#27ae60' : '#ff6b6b'}; font-weight: bold;">
                     ${test.score}
@@ -171,7 +207,7 @@ function goHome() {
 }
 
 function viewDetails(testId) {
-    window.location.href = `results.html?testId=${testId}`;
+    window.location.href = `results.html?id=${testId}`;
 }
 
 function goHome() {

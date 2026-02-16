@@ -148,17 +148,16 @@ async function loadQuestions() {
         
     } catch (error) {
         console.error('❌ ERROR in loadQuestions:', error);
-        
-        if (error.message.includes("Quota Exceeded")) {
-            alert("⚠️ AI Service Limit Reached\n\n" + error.message + "\n\nStandard questions from the database will be used instead.");
+
+        const isAiRequest = apiUrl.includes('/questions/ai-live/');
+        if (isAiRequest) {
+            alert('AI generation is unavailable right now. Please try again later or use Question Bank mode.');
             window.location.href = 'index.html';
             return;
         }
-        
-        const errorMsg = `Error loading questions: ${error.message}\n\nPlease check:\n1. Is Flask running?\n2. Copy this URL to a new tab to test: ${apiUrl}\n3. Check if your Gemini API key is correct in backend/.env`;
-        
-        alert(errorMsg);
-        
+
+        alert(`Error loading questions: ${error.message}`);
+
         // Don't redirect so user can see console
         console.log('Staying on page for debugging. Check console above.');
     }
