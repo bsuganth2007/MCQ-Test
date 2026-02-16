@@ -240,6 +240,6 @@ In Render Dashboard:
 ## Summary
 
 ✅ **Before**: SQLite database → Lost on redeploy  
-✅ **After**: PostgreSQL database → Persists forever!
+✅ **After**: PostgreSQL database → Persists across deployments!
 
 Your user history and test data will now be preserved across all redeployments! 🎉

@@ -26,10 +26,10 @@ def check_environment():
     
     print_section("Environment Variables")
     if database_url:
-        print(f"✓ DATABASE_URL is SET")
+        print(f"✓ DATABASE_URL is Set")
         print(f"  Value: {database_url[:50]}{'...' if len(database_url) > 50 else ''}")
     else:
-        print(f"ℹ DATABASE_URL is NOT set")
+        print(f"ℹ DATABASE_URL is Not Set")
     
     print_section("Database Mode")
     if database_url:
