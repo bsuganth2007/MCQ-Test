@@ -9,8 +9,21 @@ class QuestionGenerator:
     def __init__(self):
         """Initialize the question generator with Gemini API"""
         api_key = os.getenv('GEMINI_API_KEY')
-        if not api_key:
-            raise ValueError("GEMINI_API_KEY environment variable not set")
+        if not api_key or api_key == 'YOUR_GEMINI_API_KEY_HERE':
+            error_msg = """
+            ❌ Gemini API Key Not Configured
+            
+            The GEMINI_API_KEY is not set or is using the default placeholder.
+            
+            To configure your API key:
+            1. Get your API key from: https://aistudio.google.com/app/apikey
+            2. Copy backend/.env.example to backend/.env
+            3. Replace YOUR_GEMINI_API_KEY_HERE with your actual API key
+            4. Restart the application
+            
+            For detailed instructions, see SECURITY_SETUP.md
+            """
+            raise ValueError(error_msg.strip())
         genai.configure(api_key=api_key)
         self.model = genai.GenerativeModel('gemini-1.5-flash')
     
