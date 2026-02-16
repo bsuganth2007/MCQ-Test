@@ -2,6 +2,11 @@
 
 A web-based Multiple Choice Questions (MCQ) test application for ICSE Grade 10 students covering Physics, Chemistry, Mathematics, and Biology.
 
+## 🚀 Quick Links
+
+- **[Cloud Deployment Guide](RENDER_DEPLOYMENT.md)** - Fix database reset issues on Render/cloud platforms
+- **[Environment Template](.env.template)** - Configure PostgreSQL connection
+
 ## Features
 
 - ✅ Subject selection (Physics, Chemistry, Maths, Biology)
@@ -11,12 +16,13 @@ A web-based Multiple Choice Questions (MCQ) test application for ICSE Grade 10 s
 - ✅ Test history tracking
 - ✅ Score calculation and performance feedback
 - ✅ Responsive design
+- ✅ PostgreSQL support for cloud deployment with persistent storage
 
 ## Technology Stack
 
 - **Frontend**: HTML, CSS, JavaScript
 - **Backend**: Python, Flask
-- **Database**: SQLite (for history), Excel (for questions)
+- **Database**: SQLite (local development) / PostgreSQL (production), CSV (for questions)
 
 ## Project Structure
 
@@ -51,8 +57,9 @@ mcq-test-app/
 - Python 3.8 or higher
 - pip (Python package manager)
 - Modern web browser
+- PostgreSQL (optional, for production deployment)
 
-### Backend Setup
+### Local Development Setup
 
 1. **Navigate to the backend directory:**
    ```bash
@@ -253,6 +260,31 @@ If you see CORS errors in the browser console:
 
 - The database is created automatically on first run
 - If you see database errors, delete `backend/data/history.db` and restart the backend
+
+## Cloud Deployment (Render, Heroku, etc.)
+
+### ⚠️ Important: Database Persistence Issue
+
+**Problem**: When deploying on cloud platforms like Render, the SQLite database (`data/history.db`) gets reset on every redeploy because it's stored in ephemeral container storage. This means user history and test data are lost.
+
+**Solution**: Use PostgreSQL for persistent storage in production.
+
+### Quick Deployment Guide
+
+1. **Set up PostgreSQL database** on your cloud platform (Render, Heroku, etc.)
+2. **Set environment variable**: `DATABASE_URL=postgresql://...`
+3. **Deploy your application** - the app will automatically use PostgreSQL
+4. **Migrate existing data** (optional): Run `python backend/migrate_sqlite_to_postgres.py`
+
+📖 **Detailed deployment guide**: See [RENDER_DEPLOYMENT.md](RENDER_DEPLOYMENT.md) for complete step-by-step instructions for deploying on Render with PostgreSQL.
+
+### Database Support
+
+The application automatically detects which database to use:
+- **Local Development**: SQLite (`data/history.db`) - data stored locally
+- **Production** (with `DATABASE_URL` set): PostgreSQL - persistent cloud storage
+
+No code changes needed - just set the `DATABASE_URL` environment variable!
 
 ## Contributing
 
