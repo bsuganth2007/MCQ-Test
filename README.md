@@ -10,6 +10,7 @@ A web-based Multiple Choice Questions (MCQ) test application for ICSE Grade 10 s
 
 ## 🚀 Quick Links
 
+- **[📚 Documentation Index](DOCUMENTATION_INDEX.md)** - Complete guide to all documentation
 - **[Quick Start: Fix Render Database Reset](QUICKSTART_RENDER.md)** - 5-minute fix for database reset issue ⚡
 - **[Cloud Deployment Guide](RENDER_DEPLOYMENT.md)** - Detailed deployment instructions
 - **[Environment Template](.env.template)** - Configure PostgreSQL connection
