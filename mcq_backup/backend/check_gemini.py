@@ -1,8 +1,17 @@
 import google.generativeai as genai
 import os
 
-# Your API key
-api_key = os.getenv('GEMINI_API_KEY', 'AIzaSyBsL_jvk8Om0zlMetNXOA3t_Pyk_qluaDo')
+# Get API key from environment variable only
+api_key = os.getenv('GEMINI_API_KEY')
+
+if not api_key:
+    print("❌ ERROR: GEMINI_API_KEY environment variable not set!")
+    print("\n📝 Setup Instructions:")
+    print("   1. Get your API key from: https://aistudio.google.com/app/apikey")
+    print("   2. Copy backend/.env.example to backend/.env")
+    print("   3. Replace YOUR_GEMINI_API_KEY_HERE with your actual API key")
+    print("   4. Never commit the .env file to version control!")
+    exit(1)
 
 print("Testing Gemini API...")
 print(f"API Key: {api_key[:20]}...")

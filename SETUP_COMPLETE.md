@@ -1,5 +1,32 @@
 # MCQ Test Application - Setup Complete! ✅
 
+## 🔐 Security Update - API Key Configuration Required
+
+**IMPORTANT:** The Gemini API key has been removed for security reasons. You need to configure your own API key before using AI features.
+
+### Setting Up Your API Key:
+
+1. **Get your Gemini API key:**
+   - Visit: https://aistudio.google.com/app/apikey
+   - Sign in with your Google account
+   - Create a new API key
+
+2. **Configure the key:**
+   ```bash
+   cd backend
+   cp .env.example .env
+   # Edit .env and add your API key
+   ```
+
+3. **Test your setup:**
+   ```bash
+   python backend/check_gemini.py
+   ```
+
+For detailed instructions, see [SECURITY_SETUP.md](SECURITY_SETUP.md)
+
+---
+
 ## Your Question Bank
 - **File**: `backend/data/questions.csv`
 - **Total Questions**: 1,500

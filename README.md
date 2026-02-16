@@ -51,6 +51,33 @@ mcq-test-app/
 - Python 3.8 or higher
 - pip (Python package manager)
 - Modern web browser
+- Google Gemini API key (for AI-powered question generation)
+
+### 🔐 Security Setup (Required for AI Features)
+
+**Before using the AI question generation features, you must configure your Gemini API key securely:**
+
+1. **Get your API key:**
+   - Visit [Google AI Studio](https://aistudio.google.com/app/apikey)
+   - Sign in and create an API key
+
+2. **Configure the API key:**
+   ```bash
+   cd backend
+   cp .env.example .env
+   ```
+   
+3. **Edit the `.env` file** and replace `YOUR_GEMINI_API_KEY_HERE` with your actual API key:
+   ```bash
+   GEMINI_API_KEY=AIzaSyXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+   ```
+
+4. **⚠️ IMPORTANT SECURITY NOTES:**
+   - Never commit the `.env` file to version control (it's in `.gitignore`)
+   - Never share your API key publicly
+   - If exposed, immediately revoke and generate a new key
+
+For detailed security instructions, see [SECURITY_SETUP.md](SECURITY_SETUP.md)
 
 ### Backend Setup
 
