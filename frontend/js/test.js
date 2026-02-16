@@ -49,6 +49,7 @@ async function loadQuestions() {
     try {
         const loadingElement = document.getElementById('loading');
         loadingElement.textContent = 'Loading questions...';
+        const userId = localStorage.getItem('userId');
         
         const source = sessionStorage.getItem('questionSource') || 'database';
         console.log('Mode:', source);
@@ -67,6 +68,9 @@ async function loadQuestions() {
         }
         
         apiUrl = `${API_URL}/questions/${currentSubject}`;
+        if (source !== 'genai' && userId) {
+            apiUrl = `${apiUrl}?user_id=${encodeURIComponent(userId)}`;
+        }
         if (source === 'genai') {
             apiUrl = `${API_URL}/questions/ai-live/${currentSubject}`;
             loadingElement.innerHTML = `
@@ -335,7 +339,8 @@ async function submitTest() {
         correct_answer: q.correct_answer || q.option_a, // Fallback, will be fixed by backend if needed
         question_data: {
             options: q.options,
-            correct_option: q.correct_option // Pass this for AI-live questions
+            correct_option: q.correct_option, // Pass this for AI-live questions
+            question_uid: q.question_uid
         }
     }));
     

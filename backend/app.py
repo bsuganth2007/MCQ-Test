@@ -5,6 +5,7 @@ import random
 import sqlite3
 from datetime import datetime
 import os
+import hashlib
 from question_generator import QuestionGenerator
 
 # Get the port from environment (Replit uses dynamic ports)
@@ -18,121 +19,329 @@ CORS(app, resources={r"/api/*": {"origins": "*"}})
 BASE_DIR = os.path.abspath(os.path.dirname(__file__))
 DATA_FILE = os.path.join(BASE_DIR, 'data', 'MCQ_Quesbank.csv')
 DB_FILE = os.path.join(BASE_DIR, 'data', 'history.db')
+DATABASE_URL = os.environ.get('DATABASE_URL')
+USE_POSTGRES = bool(DATABASE_URL)
+NO_REPEAT_TESTS = 10
+
+class DbCursor:
+    def __init__(self, cursor):
+        self._cursor = cursor
+
+    def execute(self, query, params=None):
+        if USE_POSTGRES:
+            query = query.replace('?', '%s')
+        if params is None:
+            return self._cursor.execute(query)
+        return self._cursor.execute(query, params)
+
+    def executemany(self, query, params):
+        if USE_POSTGRES:
+            query = query.replace('?', '%s')
+        return self._cursor.executemany(query, params)
+
+    def fetchone(self):
+        return self._cursor.fetchone()
+
+    def fetchall(self):
+        return self._cursor.fetchall()
+
+    def __getattr__(self, name):
+        return getattr(self._cursor, name)
+
+class DbConnection:
+    def __init__(self, conn):
+        self._conn = conn
+
+    def cursor(self):
+        return DbCursor(self._conn.cursor())
+
+    def commit(self):
+        return self._conn.commit()
+
+    def rollback(self):
+        return self._conn.rollback()
+
+    def close(self):
+        return self._conn.close()
+
+    def __getattr__(self, name):
+        return getattr(self._conn, name)
+
+def get_db_connection(*_args, **_kwargs):
+    if USE_POSTGRES:
+        import psycopg2
+        return DbConnection(psycopg2.connect(DATABASE_URL))
+    return sqlite3.connect(DB_FILE)
+
+if USE_POSTGRES:
+    sqlite3.connect = get_db_connection
+
+def normalize_text(value):
+    text = str(value or '')
+    text = ' '.join(text.strip().split())
+    return text.lower()
+
+def compute_question_uid(subject, question, options):
+    parts = [normalize_text(subject), normalize_text(question)]
+    parts.extend([normalize_text(opt) for opt in (options or [])])
+    signature = '|'.join(parts)
+    return hashlib.sha256(signature.encode('utf-8')).hexdigest()
+
+def get_recent_question_uids(user_id, subject, limit_tests):
+    conn = get_db_connection()
+    cursor = conn.cursor()
+
+    cursor.execute('''
+        SELECT id
+        FROM test_history
+        WHERE user_id = ? AND subject = ?
+        ORDER BY timestamp DESC
+        LIMIT ?
+    ''', (user_id, subject, limit_tests))
+
+    test_ids = [row[0] for row in cursor.fetchall()]
+    if not test_ids:
+        conn.close()
+        return set()
+
+    placeholders = ','.join(['?'] * len(test_ids))
+    cursor.execute(f'''
+        SELECT question_uid
+        FROM question_history
+        WHERE test_id IN ({placeholders}) AND question_uid IS NOT NULL
+    ''', test_ids)
+
+    uids = {row[0] for row in cursor.fetchall() if row[0]}
+    conn.close()
+    return uids
+
+def format_timestamp(ts_value):
+    if isinstance(ts_value, datetime):
+        return ts_value
+    try:
+        return datetime.strptime(ts_value, '%Y-%m-%d %H:%M:%S')
+    except Exception:
+        return datetime.fromisoformat(str(ts_value))
 
 # Initialize database
 def init_db():
     data_dir = os.path.join(BASE_DIR, 'data')
     if not os.path.exists(data_dir):
         os.makedirs(data_dir)
-    
-    conn = sqlite3.connect(DB_FILE)
+
+    conn = get_db_connection()
     cursor = conn.cursor()
-    
-    # Existing test history table
-    cursor.execute('''
-        CREATE TABLE IF NOT EXISTS test_history (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            subject TEXT NOT NULL,
-            total_questions INTEGER NOT NULL,
-            correct_answers INTEGER NOT NULL,
-            score REAL NOT NULL,
-            timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
-            user_id TEXT DEFAULT NULL,
-            user_name TEXT DEFAULT NULL
-        )
-    ''')
-    
-    # Existing question history table
-    cursor.execute('''
-        CREATE TABLE IF NOT EXISTS question_history (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            test_id INTEGER NOT NULL,
-            question TEXT NOT NULL,
-            user_answer TEXT,
-            correct_answer TEXT NOT NULL,
-            is_correct BOOLEAN NOT NULL,
-            FOREIGN KEY (test_id) REFERENCES test_history(id)
-        )
-    ''')
-    
-    # NEW: Visitor tracking table
-    cursor.execute('''
-        CREATE TABLE IF NOT EXISTS visitor_logs (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            user_id TEXT NOT NULL,
-            user_name TEXT DEFAULT NULL,
-            visit_type TEXT NOT NULL,
-            page_visited TEXT NOT NULL,
-            ip_address TEXT DEFAULT NULL,
-            user_agent TEXT DEFAULT NULL,
-            timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
-        )
-    ''')
-    
-    # NEW: User sessions table
-    cursor.execute('''
-        CREATE TABLE IF NOT EXISTS user_sessions (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            user_id TEXT NOT NULL UNIQUE,
-            user_name TEXT NOT NULL,
-            first_visit DATETIME DEFAULT CURRENT_TIMESTAMP,
-            last_visit DATETIME DEFAULT CURRENT_TIMESTAMP,
-            total_visits INTEGER DEFAULT 1,
-            total_tests INTEGER DEFAULT 0,
-            is_active BOOLEAN DEFAULT 1
-        )
-    ''')
-    
-    # NEW: Test attempts tracking
-    cursor.execute('''
-        CREATE TABLE IF NOT EXISTS test_attempts (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            user_id TEXT NOT NULL,
-            user_name TEXT NOT NULL,
-            subject TEXT NOT NULL,
-            test_id INTEGER NOT NULL,
-            score REAL NOT NULL,
-            duration_seconds INTEGER DEFAULT NULL,
-            timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
-            FOREIGN KEY (test_id) REFERENCES test_history(id)
-        )
-    ''')
-    
-    # Existing AI-generated questions table
-    cursor.execute('''
-        CREATE TABLE IF NOT EXISTS ai_generated_questions (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            subject TEXT NOT NULL,
-            question TEXT NOT NULL,
-            option_a TEXT NOT NULL,
-            option_b TEXT NOT NULL,
-            option_c TEXT NOT NULL,
-            option_d TEXT NOT NULL,
-            correct_option TEXT NOT NULL,
-            question_type TEXT DEFAULT 'Standard',
-            chapter_name TEXT DEFAULT 'General',
-            explanation TEXT,
-            status TEXT DEFAULT 'pending_review',
-            created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-            reviewed_at DATETIME DEFAULT NULL,
-            reviewed_by TEXT DEFAULT NULL,
-            is_active BOOLEAN DEFAULT 1,
-            review_notes TEXT DEFAULT NULL
-        )
-    ''')
-    
-    # Existing admin actions table
-    cursor.execute('''
-        CREATE TABLE IF NOT EXISTS admin_actions (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            action_type TEXT NOT NULL,
-            target_id INTEGER,
-            details TEXT,
-            admin_user TEXT DEFAULT 'admin',
-            timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
-        )
-    ''')
-    
+
+    if USE_POSTGRES:
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS test_history (
+                id SERIAL PRIMARY KEY,
+                subject TEXT NOT NULL,
+                total_questions INTEGER NOT NULL,
+                correct_answers INTEGER NOT NULL,
+                score DOUBLE PRECISION NOT NULL,
+                timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                user_id TEXT,
+                user_name TEXT
+            )
+        ''')
+
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS question_history (
+                id SERIAL PRIMARY KEY,
+                test_id INTEGER NOT NULL,
+                question TEXT NOT NULL,
+                user_answer TEXT,
+                correct_answer TEXT NOT NULL,
+                is_correct BOOLEAN NOT NULL,
+                question_uid TEXT,
+                FOREIGN KEY (test_id) REFERENCES test_history(id)
+            )
+        ''')
+
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS visitor_logs (
+                id SERIAL PRIMARY KEY,
+                user_id TEXT NOT NULL,
+                user_name TEXT,
+                visit_type TEXT NOT NULL,
+                page_visited TEXT NOT NULL,
+                ip_address TEXT,
+                user_agent TEXT,
+                timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        ''')
+
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS user_sessions (
+                id SERIAL PRIMARY KEY,
+                user_id TEXT NOT NULL UNIQUE,
+                user_name TEXT NOT NULL,
+                first_visit TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                last_visit TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                total_visits INTEGER DEFAULT 1,
+                total_tests INTEGER DEFAULT 0,
+                is_active BOOLEAN DEFAULT TRUE
+            )
+        ''')
+
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS test_attempts (
+                id SERIAL PRIMARY KEY,
+                user_id TEXT NOT NULL,
+                user_name TEXT NOT NULL,
+                subject TEXT NOT NULL,
+                test_id INTEGER NOT NULL,
+                score DOUBLE PRECISION NOT NULL,
+                duration_seconds INTEGER,
+                timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (test_id) REFERENCES test_history(id)
+            )
+        ''')
+
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS ai_generated_questions (
+                id SERIAL PRIMARY KEY,
+                subject TEXT NOT NULL,
+                question TEXT NOT NULL,
+                option_a TEXT NOT NULL,
+                option_b TEXT NOT NULL,
+                option_c TEXT NOT NULL,
+                option_d TEXT NOT NULL,
+                correct_option TEXT NOT NULL,
+                question_type TEXT DEFAULT 'Standard',
+                chapter_name TEXT DEFAULT 'General',
+                explanation TEXT,
+                status TEXT DEFAULT 'pending_review',
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                reviewed_at TIMESTAMP,
+                reviewed_by TEXT,
+                is_active BOOLEAN DEFAULT TRUE,
+                review_notes TEXT
+            )
+        ''')
+
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS admin_actions (
+                id SERIAL PRIMARY KEY,
+                action_type TEXT NOT NULL,
+                target_id INTEGER,
+                details TEXT,
+                admin_user TEXT DEFAULT 'admin',
+                timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        ''')
+    else:
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS test_history (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                subject TEXT NOT NULL,
+                total_questions INTEGER NOT NULL,
+                correct_answers INTEGER NOT NULL,
+                score REAL NOT NULL,
+                timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
+                user_id TEXT DEFAULT NULL,
+                user_name TEXT DEFAULT NULL
+            )
+        ''')
+
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS question_history (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                test_id INTEGER NOT NULL,
+                question TEXT NOT NULL,
+                user_answer TEXT,
+                correct_answer TEXT NOT NULL,
+                is_correct BOOLEAN NOT NULL,
+                question_uid TEXT,
+                FOREIGN KEY (test_id) REFERENCES test_history(id)
+            )
+        ''')
+
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS visitor_logs (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id TEXT NOT NULL,
+                user_name TEXT DEFAULT NULL,
+                visit_type TEXT NOT NULL,
+                page_visited TEXT NOT NULL,
+                ip_address TEXT DEFAULT NULL,
+                user_agent TEXT DEFAULT NULL,
+                timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
+            )
+        ''')
+
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS user_sessions (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id TEXT NOT NULL UNIQUE,
+                user_name TEXT NOT NULL,
+                first_visit DATETIME DEFAULT CURRENT_TIMESTAMP,
+                last_visit DATETIME DEFAULT CURRENT_TIMESTAMP,
+                total_visits INTEGER DEFAULT 1,
+                total_tests INTEGER DEFAULT 0,
+                is_active BOOLEAN DEFAULT 1
+            )
+        ''')
+
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS test_attempts (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id TEXT NOT NULL,
+                user_name TEXT NOT NULL,
+                subject TEXT NOT NULL,
+                test_id INTEGER NOT NULL,
+                score REAL NOT NULL,
+                duration_seconds INTEGER DEFAULT NULL,
+                timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (test_id) REFERENCES test_history(id)
+            )
+        ''')
+
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS ai_generated_questions (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                subject TEXT NOT NULL,
+                question TEXT NOT NULL,
+                option_a TEXT NOT NULL,
+                option_b TEXT NOT NULL,
+                option_c TEXT NOT NULL,
+                option_d TEXT NOT NULL,
+                correct_option TEXT NOT NULL,
+                question_type TEXT DEFAULT 'Standard',
+                chapter_name TEXT DEFAULT 'General',
+                explanation TEXT,
+                status TEXT DEFAULT 'pending_review',
+                created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                reviewed_at DATETIME DEFAULT NULL,
+                reviewed_by TEXT DEFAULT NULL,
+                is_active BOOLEAN DEFAULT 1,
+                review_notes TEXT DEFAULT NULL
+            )
+        ''')
+
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS admin_actions (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                action_type TEXT NOT NULL,
+                target_id INTEGER,
+                details TEXT,
+                admin_user TEXT DEFAULT 'admin',
+                timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
+            )
+        ''')
+
+    if USE_POSTGRES:
+        cursor.execute('''
+            ALTER TABLE question_history
+            ADD COLUMN IF NOT EXISTS question_uid TEXT
+        ''')
+    else:
+        cursor.execute("PRAGMA table_info(question_history)")
+        existing_columns = [row[1] for row in cursor.fetchall()]
+        if 'question_uid' not in existing_columns:
+            cursor.execute('ALTER TABLE question_history ADD COLUMN question_uid TEXT')
+
     conn.commit()
     conn.close()
 
@@ -453,7 +662,11 @@ def get_questions(subject):
         print(f"\n{'='*60}")
         print(f"📚 Loading questions for: {subject}")
         print(f"{'='*60}")
-        
+        user_id = request.args.get('user_id')
+        recent_uids = set()
+        if user_id:
+            recent_uids = get_recent_question_uids(user_id, subject, NO_REPEAT_TESTS)
+
         questions = load_questions(subject)
         
         if not questions:
@@ -463,12 +676,32 @@ def get_questions(subject):
         print(f"✅ Loaded {len(questions)} raw questions from CSV")
         
         import random
-        selected_questions = random.sample(questions, min(20, len(questions)))
+        def normalize_option(value, fallback):
+            text = str(value or '').strip()
+            if not text or text.lower() == 'nan':
+                return fallback
+            return text
+
+        questions_with_uid = []
+        for q in questions:
+            question_text = str(q.get('Question', '')).strip()
+            option_a = normalize_option(q.get('Option A', ''), 'Option A')
+            option_b = normalize_option(q.get('Option B', ''), 'Option B')
+            option_c = normalize_option(q.get('Option C', ''), 'Option C')
+            option_d = normalize_option(q.get('Option D', ''), 'Option D')
+            options = [option_a, option_b, option_c, option_d]
+            question_uid = compute_question_uid(subject, question_text, options)
+            questions_with_uid.append((question_uid, q))
+
+        eligible_questions = [item for item in questions_with_uid if item[0] not in recent_uids]
+        pool = eligible_questions if len(eligible_questions) >= 10 else questions_with_uid
+        selected_questions = random.sample(pool, min(20, len(pool)))
         
         formatted_questions = []
         
-        for i, q in enumerate(selected_questions):
+        for i, item in enumerate(selected_questions):
             try:
+                question_uid, q = item
                 # Extract fields
                 question_text = str(q.get('Question', '')).strip()
                 option_a = str(q.get('Option A', '')).strip()
@@ -533,7 +766,8 @@ def get_questions(subject):
                     'options': options,
                     'correct_answer': correct_text,  # Full text for backend comparison
                     'correct_answer_letter': correct_letter,  # Letter for reference
-                    'question_type': 'Standard'  # Default type since we're not using Difficulty
+                    'question_type': 'Standard',  # Default type since we're not using Difficulty
+                    'question_uid': question_uid
                 }
                 
                 formatted_questions.append(formatted_question)
@@ -686,6 +920,10 @@ def submit_test():
             # Compare the actual text (case-insensitive)
             is_correct = user_answer_text.lower().strip() == correct_answer_text.lower().strip()
             print(f"  Match: {is_correct}")
+
+            question_uid = question_data.get('question_uid')
+            if not question_uid:
+                question_uid = compute_question_uid(subject, answer.get('question', ''), options)
             
             if is_correct:
                 correct_count += 1
@@ -697,7 +935,8 @@ def submit_test():
                 'correct_answer_letter': correct_answer_letter or '?',  # A, B, C, D
                 'correct_answer_text': correct_answer_text,  # Full text
                 'is_correct': is_correct,
-                'all_options': options  # Include all options for reference
+                'all_options': options,  # Include all options for reference
+                'question_uid': question_uid
             })
         
         score = (correct_count / total_questions) * 100
@@ -705,30 +944,38 @@ def submit_test():
         
         # Save to database
         print(f"💾 Saving to DB: {DB_FILE}")
-        conn = sqlite3.connect(DB_FILE)
+        conn = get_db_connection()
         cursor = conn.cursor()
         
         print("📝 Inserting into test_history...")
-        cursor.execute('''
-            INSERT INTO test_history (subject, total_questions, correct_answers, score, user_id, user_name)
-            VALUES (?, ?, ?, ?, ?, ?)
-        ''', (subject, total_questions, correct_count, score, user_id, user_name))
-        
-        test_id = cursor.lastrowid
+        if USE_POSTGRES:
+            cursor.execute('''
+                INSERT INTO test_history (subject, total_questions, correct_answers, score, user_id, user_name)
+                VALUES (?, ?, ?, ?, ?, ?)
+                RETURNING id
+            ''', (subject, total_questions, correct_count, score, user_id, user_name))
+            test_id = cursor.fetchone()[0]
+        else:
+            cursor.execute('''
+                INSERT INTO test_history (subject, total_questions, correct_answers, score, user_id, user_name)
+                VALUES (?, ?, ?, ?, ?, ?)
+            ''', (subject, total_questions, correct_count, score, user_id, user_name))
+            test_id = cursor.lastrowid
         print(f"✅ Generated Test ID: {test_id}")
         
         # Save individual question results
         print("📝 Inserting question results...")
         for result in results:
             cursor.execute('''
-                INSERT INTO question_history (test_id, question, user_answer, correct_answer, is_correct)
-                VALUES (?, ?, ?, ?, ?)
+                INSERT INTO question_history (test_id, question, user_answer, correct_answer, is_correct, question_uid)
+                VALUES (?, ?, ?, ?, ?, ?)
             ''', (
                 test_id, 
                 result['question'], 
                 f"{result['user_answer_letter']}) {result['user_answer_text']}", 
                 f"{result['correct_answer_letter']}) {result['correct_answer_text']}", 
-                result['is_correct']
+                result['is_correct'],
+                result.get('question_uid')
             ))
         
         conn.commit()
@@ -777,7 +1024,7 @@ def get_history():
     
     history = []
     for idx, row in enumerate(cursor.fetchall(), 1):
-        timestamp = datetime.strptime(row[5], '%Y-%m-%d %H:%M:%S')
+        timestamp = format_timestamp(row[5])
         history.append({
             'test_no': idx,
             'date': timestamp.strftime('%d-%b-%Y'),
@@ -806,7 +1053,7 @@ def get_admin_history():
 
     history = []
     for idx, row in enumerate(cursor.fetchall(), 1):
-        timestamp = datetime.strptime(row[5], '%Y-%m-%d %H:%M:%S')
+        timestamp = format_timestamp(row[5])
         history.append({
             'test_no': idx,
             'date': timestamp.strftime('%d-%b-%Y'),
@@ -1129,11 +1376,18 @@ def get_analytics():
         })
     
     # Recent users (last 24 hours)
-    cursor.execute('''
-        SELECT COUNT(DISTINCT user_id)
-        FROM visitor_logs
-        WHERE timestamp >= datetime('now', '-1 day')
-    ''')
+    if USE_POSTGRES:
+        cursor.execute('''
+            SELECT COUNT(DISTINCT user_id)
+            FROM visitor_logs
+            WHERE timestamp >= NOW() - INTERVAL '1 day'
+        ''')
+    else:
+        cursor.execute('''
+            SELECT COUNT(DISTINCT user_id)
+            FROM visitor_logs
+            WHERE timestamp >= datetime('now', '-1 day')
+        ''')
     active_users_24h = cursor.fetchone()[0]
     
     # Top performers
@@ -1382,6 +1636,94 @@ def approve_bulk_questions():
     else:
         return jsonify({'error': 'No valid questions to approve'}), 400
 
+@app.route('/api/admin/upload-csv', methods=['POST'])
+def upload_csv_questions():
+    """Upload a CSV file and append questions to the main question bank"""
+    if 'file' not in request.files:
+        return jsonify({'error': 'No file uploaded'}), 400
+
+    upload_file = request.files['file']
+    if not upload_file or upload_file.filename == '':
+        return jsonify({'error': 'No file selected'}), 400
+
+    admin_user = request.form.get('admin_user', 'admin')
+
+    try:
+        try:
+            df_upload = pd.read_csv(upload_file, dtype=str, encoding='utf-8')
+        except UnicodeDecodeError:
+            df_upload = pd.read_csv(upload_file, dtype=str, encoding='utf-8-sig')
+
+        if df_upload.empty:
+            return jsonify({'error': 'Uploaded CSV is empty'}), 400
+
+        def normalize_col(name):
+            import re
+            text = str(name).strip().lower()
+            text = text.replace('_', '').replace(' ', '')
+            return re.sub(r'[^a-z0-9]', '', text)
+
+        col_map = {normalize_col(col): col for col in df_upload.columns}
+        required = {
+            'subject': 'Subject',
+            'question': 'Question',
+            'optiona': 'Option A',
+            'optionb': 'Option B',
+            'optionc': 'Option C',
+            'optiond': 'Option D',
+            'correctoption': 'Correct Option'
+        }
+
+        missing = [name for key, name in required.items() if key not in col_map]
+        if missing:
+            return jsonify({
+                'error': f"Missing required columns: {', '.join(missing)}"
+            }), 400
+
+        df_normalized = df_upload[[
+            col_map['subject'],
+            col_map['question'],
+            col_map['optiona'],
+            col_map['optionb'],
+            col_map['optionc'],
+            col_map['optiond'],
+            col_map['correctoption']
+        ]].copy()
+
+        df_normalized.columns = [
+            'Subject',
+            'Question',
+            'Option A',
+            'Option B',
+            'Option C',
+            'Option D',
+            'Correct Option'
+        ]
+
+        for col in df_normalized.columns:
+            df_normalized[col] = df_normalized[col].fillna('').astype(str).str.strip()
+
+        df_normalized = df_normalized[
+            (df_normalized['Subject'] != '') & (df_normalized['Question'] != '')
+        ]
+
+        if df_normalized.empty:
+            return jsonify({'error': 'No valid rows found after cleaning'}), 400
+
+        df_existing = pd.read_csv(DATA_FILE, encoding='utf-8', dtype=str)
+        df_existing = pd.concat([df_existing, df_normalized], ignore_index=True)
+        df_existing.to_csv(DATA_FILE, index=False, encoding='utf-8')
+
+        log_admin_action('csv_upload', None,
+                         f'Uploaded {len(df_normalized)} questions', admin_user)
+
+        return jsonify({
+            'message': 'CSV uploaded and appended successfully',
+            'added_count': len(df_normalized)
+        })
+    except Exception as e:
+        return jsonify({'error': f'Upload failed: {str(e)}'}), 500
+
 @app.route('/api/admin/reject-question/<int:question_id>', methods=['POST'])
 def reject_question(question_id):
     """Reject a question (soft delete)"""
@@ -1505,45 +1847,104 @@ def get_admin_stats():
     cursor = conn.cursor()
     
     # Get subjects from CSV
+    def normalize_subject_key(value):
+        import re
+        text = str(value or '')
+        text = text.replace('\ufeff', '').replace('\u200b', '').replace('\u00a0', ' ')
+        text = re.sub(r'\s+', '', text.strip().lower())
+        text = re.sub(r'[^a-z0-9]', '', text)
+        return text
+
+    subject_labels = {}
     try:
         df = pd.read_csv(DATA_FILE, encoding='utf-8', dtype=str)
         df['Subject'] = df['Subject'].str.replace('Physcis', 'Physics', case=False)
-        df['Subject'] = df['Subject'].fillna('').astype(str).str.strip().str.replace(r'\s+', ' ', regex=True)
+        df['Subject'] = df['Subject'].fillna('').astype(str)
 
-        unique_subjects = {}
         for subject in df['Subject'].tolist():
             if not subject:
                 continue
-            key = subject.lower()
-            if key not in unique_subjects:
-                unique_subjects[key] = subject
-
-        subjects = sorted(unique_subjects.values())
+            cleaned = subject.replace('\ufeff', '').replace('\u200b', '').replace('\u00a0', ' ').strip()
+            key = normalize_subject_key(cleaned)
+            if key and key not in subject_labels:
+                subject_labels[key] = cleaned
     except Exception:
-        subjects = ['Physics', 'Chemistry', 'Maths', 'Biology']
-    
-    stats = {}
-    
-    for subject in subjects:
-        cursor.execute('''
-            SELECT 
-                COUNT(CASE WHEN status = 'pending_review' THEN 1 END) as pending,
-                COUNT(CASE WHEN status = 'approved' THEN 1 END) as approved,
-                COUNT(CASE WHEN status = 'rejected' THEN 1 END) as rejected
-            FROM ai_generated_questions
-            WHERE TRIM(subject) = ? AND is_active = 1
-        ''', (subject,))
-        
-        row = cursor.fetchone()
-        stats[subject] = {
-            'pending': row[0],
-            'approved': row[1],
-            'rejected': row[2],
-            'total': row[0] + row[1]
+        subject_labels = {
+            'physics': 'Physics',
+            'chemistry': 'Chemistry',
+            'maths': 'Maths',
+            'biology': 'Biology'
         }
+
+    cursor.execute('''
+        SELECT subject, status, COUNT(*)
+        FROM ai_generated_questions
+        WHERE is_active = 1
+        GROUP BY subject, status
+    ''')
+
+    stats_by_key = {}
+    for row in cursor.fetchall():
+        subject_raw = row[0]
+        status = row[1]
+        count = row[2]
+        key = normalize_subject_key(subject_raw)
+        if not key:
+            continue
+        if key not in stats_by_key:
+            stats_by_key[key] = {'pending': 0, 'approved': 0, 'rejected': 0}
+        if status == 'pending_review':
+            stats_by_key[key]['pending'] += count
+        elif status == 'approved':
+            stats_by_key[key]['approved'] += count
+        elif status == 'rejected':
+            stats_by_key[key]['rejected'] += count
+
+    # Ensure every CSV subject shows up at least once
+    for key in subject_labels.keys():
+        stats_by_key.setdefault(key, {'pending': 0, 'approved': 0, 'rejected': 0})
+
+    canonical_labels = {
+        key: (label or '').replace('\ufeff', '').replace('\u200b', '').replace('\u00a0', ' ').strip()
+        for key, label in subject_labels.items()
+        if key
+    }
+
+    stats = {}
+    for key in sorted(stats_by_key.keys()):
+        label = canonical_labels.get(key) or key.title()
+        counts = stats_by_key.get(key, {'pending': 0, 'approved': 0, 'rejected': 0})
+        if label not in stats:
+            stats[label] = {
+                'pending': counts['pending'],
+                'approved': counts['approved'],
+                'rejected': counts['rejected'],
+                'total': counts['pending'] + counts['approved']
+            }
+        else:
+            stats[label]['pending'] += counts['pending']
+            stats[label]['approved'] += counts['approved']
+            stats[label]['rejected'] += counts['rejected']
+            stats[label]['total'] = stats[label]['pending'] + stats[label]['approved']
+
+    # Final cleanup: merge by trimmed label and drop zero-total entries
+    merged_stats = {}
+    for label, counts in stats.items():
+        clean_label = str(label).replace('\ufeff', '').replace('\u200b', '').replace('\u00a0', ' ').strip()
+        if counts.get('total', 0) == 0 and counts.get('pending', 0) == 0 and counts.get('approved', 0) == 0:
+            continue
+        if clean_label not in merged_stats:
+            merged_stats[clean_label] = counts
+        else:
+            merged_stats[clean_label]['pending'] += counts.get('pending', 0)
+            merged_stats[clean_label]['approved'] += counts.get('approved', 0)
+            merged_stats[clean_label]['rejected'] += counts.get('rejected', 0)
+            merged_stats[clean_label]['total'] = (
+                merged_stats[clean_label]['pending'] + merged_stats[clean_label]['approved']
+            )
     
     conn.close()
-    return jsonify({'stats': stats})
+    return jsonify({'stats': merged_stats})
 
 @app.route('/api/admin/actions', methods=['GET'])
 def get_admin_actions():

@@ -302,6 +302,9 @@
                     <button class="btn btn-primary" onclick="showGenerateModal()">
                         ✨ Generate New Questions
                     </button>
+                    <button class="btn btn-secondary" onclick="showUploadModal()">
+                        ⬆️ Upload CSV
+                    </button>
                     <button class="btn btn-secondary" onclick="window.location.href='/'">
                         ← Back to Student Portal
                     </button>
@@ -430,6 +433,25 @@
             <button class="btn btn-primary" onclick="saveEdit()">
                 Save Changes
             </button>
+        </div>
+    </div>
+
+    <!-- Upload CSV Modal -->
+    <div id="upload-modal" class="modal">
+        <div class="modal-content">
+            <span class="close" onclick="closeUploadModal()">&times;</span>
+            <h2>Upload Questions CSV</h2>
+            <p>Upload a CSV file with columns: Subject, Question, Option A, Option B, Option C, Option D, Correct Option.</p>
+
+            <div class="form-group">
+                <input type="file" id="upload-csv-file" accept=".csv">
+            </div>
+
+            <button class="btn btn-primary" onclick="uploadCsvQuestions()">
+                Upload and Append
+            </button>
+
+            <div id="upload-status" style="margin-top: 20px;"></div>
         </div>
     </div>
 

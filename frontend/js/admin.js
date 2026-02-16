@@ -517,6 +517,59 @@ function closeEditModal() {
     currentEditQuestionId = null;
 }
 
+function showUploadModal() {
+    document.getElementById('upload-modal').style.display = 'block';
+}
+
+function closeUploadModal() {
+    document.getElementById('upload-modal').style.display = 'none';
+    document.getElementById('upload-status').innerHTML = '';
+    const fileInput = document.getElementById('upload-csv-file');
+    if (fileInput) fileInput.value = '';
+}
+
+async function uploadCsvQuestions() {
+    const fileInput = document.getElementById('upload-csv-file');
+    const statusDiv = document.getElementById('upload-status');
+
+    if (!fileInput || !fileInput.files || fileInput.files.length === 0) {
+        alert('Please select a CSV file to upload.');
+        return;
+    }
+
+    const formData = new FormData();
+    formData.append('file', fileInput.files[0]);
+    formData.append('admin_user', 'admin');
+
+    statusDiv.innerHTML = '<p style="color: #667eea;">⏳ Uploading CSV...</p>';
+
+    try {
+        const response = await fetch(`${API_URL}/admin/upload-csv`, {
+            method: 'POST',
+            body: formData
+        });
+
+        const data = await response.json();
+
+        if (response.ok) {
+            statusDiv.innerHTML = `
+                <p style="color: #27ae60;">✅ ${data.message}</p>
+                <p>Added ${data.added_count} questions to the question bank.</p>
+            `;
+
+            setTimeout(() => {
+                closeUploadModal();
+                loadStats();
+            }, 2000);
+        } else {
+            statusDiv.innerHTML = `<p style="color: #ff6b6b;">❌ ${data.error}</p>`;
+        }
+    } catch (error) {
+        console.error('Error uploading CSV:', error);
+        statusDiv.innerHTML = '<p style="color: #ff6b6b;">❌ Upload failed. Please try again.</p>';
+    }
+}
+
 async function generateQuestions() {
     const subject = document.getElementById('generate-subject').value;
     const statusDiv = document.getElementById('generate-status');
