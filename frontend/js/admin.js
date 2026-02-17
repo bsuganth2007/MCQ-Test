@@ -554,12 +554,15 @@ async function uploadCsvQuestions() {
         if (response.ok) {
             statusDiv.innerHTML = `
                 <p style="color: #27ae60;">✅ ${data.message}</p>
-                <p>Added ${data.added_count} questions to the question bank.</p>
+                <p>${data.added_count} questions uploaded and are now <b>pending for review</b>. Please review and approve them to add to the question bank.</p>
             `;
 
             setTimeout(() => {
                 closeUploadModal();
                 loadStats();
+                loadPendingQuestions();
+                // Switch to pending tab automatically
+                document.querySelector('.tab-btn[onclick*="pending"]').click();
             }, 2000);
         } else {
             statusDiv.innerHTML = `<p style="color: #ff6b6b;">❌ ${data.error}</p>`;

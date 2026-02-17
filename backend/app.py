@@ -1,4 +1,21 @@
 from flask import Flask, jsonify, request, send_from_directory
+import requests
+# --- CSV Sync from Render (if configured) ---
+#RENDER_CSV_URL = os.environ.get('RENDER_CSV_URL')  # e.g. 'https://your-render-app.onrender.com/api/admin/download-csv'
+#def sync_csv_from_render():
+##      return
+#  try:
+#     print(f"[CSV SYNC] Downloading latest CSV from {RENDER_CSV_URL} ...")
+#    resp = requests.get(RENDER_CSV_URL, timeout=30)
+#   resp.raise_for_status()
+#  with open(DATA_FILE, 'wb') as f:
+#     f.write(resp.content)
+# print("[CSV SYNC] Local CSV updated from Render.")
+# except Exception as e:
+#   print(f"[CSV SYNC] Failed to sync CSV from Render: {e}")
+
+# Call sync before app starts
+#sync_csv_from_render()
 from flask_cors import CORS
 import pandas as pd
 import random
@@ -200,7 +217,7 @@ def init_db():
         ''')
 
         cursor.execute('''
-            CREATE TABLE IF NOT EXISTS ai_generated_questions (
+            CREATE TABLE IF NOT EXISTS newly_updated_questions (
                 id SERIAL PRIMARY KEY,
                 subject TEXT NOT NULL,
                 question TEXT NOT NULL,
@@ -217,7 +234,8 @@ def init_db():
                 reviewed_at TIMESTAMP,
                 reviewed_by TEXT,
                 is_active BOOLEAN DEFAULT TRUE,
-                review_notes TEXT
+                review_notes TEXT,
+                source TEXT DEFAULT 'ai'
             )
         ''')
 
@@ -299,7 +317,7 @@ def init_db():
         ''')
 
         cursor.execute('''
-            CREATE TABLE IF NOT EXISTS ai_generated_questions (
+            CREATE TABLE IF NOT EXISTS newly_updated_questions (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 subject TEXT NOT NULL,
                 question TEXT NOT NULL,
@@ -316,7 +334,8 @@ def init_db():
                 reviewed_at DATETIME DEFAULT NULL,
                 reviewed_by TEXT DEFAULT NULL,
                 is_active BOOLEAN DEFAULT 1,
-                review_notes TEXT DEFAULT NULL
+                review_notes TEXT DEFAULT NULL,
+                source TEXT DEFAULT 'ai'
             )
         ''')
 
@@ -1466,7 +1485,7 @@ def get_pending_questions():
         cursor.execute('''
             SELECT id, subject, question, option_a, option_b, option_c, option_d, 
                    correct_option, question_type, created_at, status, chapter_name, explanation
-            FROM ai_generated_questions
+            FROM newly_updated_questions
             WHERE status = 'pending_review' AND subject = ? AND is_active = 1
             ORDER BY created_at DESC
         ''', (subject,))
@@ -1474,7 +1493,7 @@ def get_pending_questions():
         cursor.execute('''
             SELECT id, subject, question, option_a, option_b, option_c, option_d, 
                    correct_option, question_type, created_at, status, chapter_name, explanation
-            FROM ai_generated_questions
+            FROM newly_updated_questions
             WHERE status = 'pending_review' AND is_active = 1
             ORDER BY created_at DESC
         ''')
@@ -1512,7 +1531,7 @@ def approve_question(question_id):
     # Get the question
     cursor.execute('''
         SELECT subject, question, option_a, option_b, option_c, option_d, correct_option
-        FROM ai_generated_questions
+        FROM newly_updated_questions
         WHERE id = ? AND status = 'pending_review'
     ''', (question_id,))
     
@@ -1524,7 +1543,7 @@ def approve_question(question_id):
     
     # Update status in database
     cursor.execute('''
-        UPDATE ai_generated_questions
+        UPDATE newly_updated_questions
         SET status = 'approved',
             reviewed_at = CURRENT_TIMESTAMP,
             reviewed_by = ?
@@ -1584,7 +1603,7 @@ def approve_bulk_questions():
         # Get the question
         cursor.execute('''
             SELECT subject, question, option_a, option_b, option_c, option_d, correct_option
-            FROM ai_generated_questions
+            FROM newly_updated_questions
             WHERE id = ? AND status = 'pending_review'
         ''', (qid,))
         
@@ -1593,7 +1612,7 @@ def approve_bulk_questions():
         if row:
             # Update status
             cursor.execute('''
-                UPDATE ai_generated_questions
+                UPDATE newly_updated_questions
                 SET status = 'approved',
                     reviewed_at = CURRENT_TIMESTAMP,
                     reviewed_by = ?
@@ -1710,16 +1729,40 @@ def upload_csv_questions():
         if df_normalized.empty:
             return jsonify({'error': 'No valid rows found after cleaning'}), 400
 
-        df_existing = pd.read_csv(DATA_FILE, encoding='utf-8', dtype=str)
-        df_existing = pd.concat([df_existing, df_normalized], ignore_index=True)
-        df_existing.to_csv(DATA_FILE, index=False, encoding='utf-8')
+        # Insert each question into newly_updated_questions with status 'pending_review'
+        conn = sqlite3.connect(DB_FILE)
+        cursor = conn.cursor()
+        inserted = 0
+        for _, row in df_normalized.iterrows():
+            try:
+                cursor.execute('''
+                    INSERT INTO newly_updated_questions
+                    (subject, question, option_a, option_b, option_c, option_d, correct_option, question_type, status, source)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ''', (
+                    row['Subject'],
+                    row['Question'],
+                    row['Option A'],
+                    row['Option B'],
+                    row['Option C'],
+                    row['Option D'],
+                    row['Correct Option'],
+                    'Standard',
+                    'pending_review',
+                    'csv'
+                ))
+                inserted += 1
+            except Exception as e:
+                print(f"Error inserting question from CSV: {e}")
+        conn.commit()
+        conn.close()
 
         log_admin_action('csv_upload', None,
-                         f'Uploaded {len(df_normalized)} questions', admin_user)
+                         f'Uploaded {inserted} questions to pending review', admin_user)
 
         return jsonify({
-            'message': 'CSV uploaded and appended successfully',
-            'added_count': len(df_normalized)
+            'message': 'CSV uploaded. All questions are now pending for review.',
+            'added_count': inserted
         })
     except Exception as e:
         return jsonify({'error': f'Upload failed: {str(e)}'}), 500
@@ -1735,7 +1778,7 @@ def reject_question(question_id):
     cursor = conn.cursor()
     
     cursor.execute('''
-        UPDATE ai_generated_questions
+        UPDATE newly_updated_questions
         SET status = 'rejected',
             is_active = 0,
             reviewed_at = CURRENT_TIMESTAMP,
@@ -1764,7 +1807,7 @@ def edit_question(question_id):
     cursor = conn.cursor()
     
     cursor.execute('''
-        UPDATE ai_generated_questions
+        UPDATE newly_updated_questions
         SET question = ?,
             option_a = ?,
             option_b = ?,
@@ -1808,7 +1851,7 @@ def get_approved_questions():
         cursor.execute('''
             SELECT id, subject, question, option_a, option_b, option_c, option_d,
                    correct_option, question_type, reviewed_at, reviewed_by
-            FROM ai_generated_questions
+            FROM newly_updated_questions
             WHERE status = 'approved' AND subject = ? AND is_active = 1
             ORDER BY reviewed_at DESC
         ''', (subject,))
@@ -1816,7 +1859,7 @@ def get_approved_questions():
         cursor.execute('''
             SELECT id, subject, question, option_a, option_b, option_c, option_d,
                    correct_option, question_type, reviewed_at, reviewed_by
-            FROM ai_generated_questions
+            FROM newly_updated_questions
             WHERE status = 'approved' AND is_active = 1
             ORDER BY reviewed_at DESC
         ''')
@@ -1878,7 +1921,7 @@ def get_admin_stats():
 
     cursor.execute('''
         SELECT subject, status, COUNT(*)
-        FROM ai_generated_questions
+        FROM newly_updated_questions
         WHERE is_active = 1
         GROUP BY subject, status
     ''')
